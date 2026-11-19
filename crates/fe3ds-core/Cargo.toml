@@ -1,0 +1,12 @@
+[package]
+name = "fe3ds-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+encoding_rs = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+png = "0.18"

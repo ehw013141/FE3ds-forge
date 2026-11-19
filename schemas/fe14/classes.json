@@ -1,0 +1,46 @@
+{
+  "id": "fe14_classes",
+  "game": "fe14",
+  "title": "职业成长率与上限",
+  "target_file": "RomFS/GameData/GameData.bin.lz",
+  "entry_prefix": "JID_",
+  "entry_size": 128,
+  "fields": [
+    {
+      "key": "player_growths",
+      "label": "我方职业成长率 (%)",
+      "offset": 36,
+      "kind": { "type": "u8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 255
+    },
+    {
+      "key": "enemy_growths",
+      "label": "敌方职业成长率 (%)",
+      "offset": 44,
+      "kind": { "type": "u8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 255
+    },
+    {
+      "key": "base_stats",
+      "label": "职业基础属性",
+      "offset": 28,
+      "kind": { "type": "u8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 255
+    },
+    {
+      "key": "max_caps",
+      "label": "职业能力上限",
+      "offset": 52,
+      "kind": { "type": "u8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 255
+    }
+  ]
+}

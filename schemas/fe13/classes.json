@@ -1,0 +1,53 @@
+{
+  "id": "fe13_classes",
+  "game": "fe13",
+  "title": "职业成长率与上限",
+  "target_file": "RomFS/data/GameData.bin.lz",
+  "entry_prefix": "JID_",
+  "entry_size": 128,
+  "cipher_profile": {
+    "c1": 57,
+    "c5": 34,
+    "idx_mul": 35,
+    "stat_step": 13,
+    "xor_mask": 7
+  },
+  "fields": [
+    {
+      "key": "player_growths",
+      "label": "我方职业成长率 (%)",
+      "offset": 32,
+      "kind": { "type": "ciphered_u8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 255
+    },
+    {
+      "key": "enemy_growths",
+      "label": "敌方职业成长率 (%)",
+      "offset": 40,
+      "kind": { "type": "ciphered_u8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 255
+    },
+    {
+      "key": "base_stats",
+      "label": "职业基础属性",
+      "offset": 24,
+      "kind": { "type": "u8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 99
+    },
+    {
+      "key": "max_caps",
+      "label": "职业能力上限",
+      "offset": 48,
+      "kind": { "type": "u8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 99
+    }
+  ]
+}
