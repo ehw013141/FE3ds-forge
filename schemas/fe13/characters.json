@@ -1,0 +1,53 @@
+{
+  "id": "fe13_characters",
+  "game": "fe13",
+  "title": "角色成长率与属性",
+  "target_file": "RomFS/data/person/static.bin.lz",
+  "entry_prefix": "PID_",
+  "entry_size": 568,
+  "cipher_profile": {
+    "c1": 24,
+    "c5": 34,
+    "idx_mul": 99,
+    "stat_step": 61,
+    "xor_mask": 38
+  },
+  "fields": [
+    {
+      "key": "personal_growths",
+      "label": "个人成长率 (%)",
+      "offset": 36,
+      "kind": { "type": "ciphered_u8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 255
+    },
+    {
+      "key": "enemy_growths",
+      "label": "敌方/增援成长加成 (%)",
+      "offset": 44,
+      "kind": { "type": "ciphered_u8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 255
+    },
+    {
+      "key": "base_modifiers",
+      "label": "个人基础属性修正",
+      "offset": 28,
+      "kind": { "type": "i8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": -128,
+      "max": 127
+    },
+    {
+      "key": "cap_modifiers",
+      "label": "个人能力上限修正",
+      "offset": 52,
+      "kind": { "type": "i8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": -128,
+      "max": 127
+    }
+  ]
+}

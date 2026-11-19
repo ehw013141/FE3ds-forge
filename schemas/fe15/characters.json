@@ -1,0 +1,37 @@
+{
+  "id": "fe15_characters",
+  "game": "fe15",
+  "title": "角色成长率与属性",
+  "target_file": "RomFS/Data/Person.bin.lz",
+  "entry_prefix": "PID_",
+  "entry_size": 168,
+  "fields": [
+    {
+      "key": "personal_growths",
+      "label": "个人成长率 (%)",
+      "offset": 68,
+      "kind": { "type": "u8_array", "len": 7 },
+      "labels": ["HP", "攻", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 255
+    },
+    {
+      "key": "base_stats",
+      "label": "个人基础属性",
+      "offset": 52,
+      "kind": { "type": "u8_array", "len": 7 },
+      "labels": ["HP", "攻", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 255
+    },
+    {
+      "key": "max_caps",
+      "label": "个人能力上限",
+      "offset": 60,
+      "kind": { "type": "u8_array", "len": 7 },
+      "labels": ["HP", "攻", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 255
+    }
+  ]
+}

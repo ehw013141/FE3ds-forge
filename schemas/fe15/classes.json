@@ -1,0 +1,45 @@
+{
+  "id": "fe15_classes",
+  "game": "fe15",
+  "title": "职业基础属性与成长",
+  "target_file": "RomFS/Data/Job.bin.lz",
+  "entry_prefix": "JID_",
+  "entry_size": 160,
+  "fields": [
+    {
+      "key": "base_stats",
+      "label": "职业基础属性",
+      "offset": 36,
+      "kind": { "type": "u8_array", "len": 7 },
+      "labels": ["HP", "攻", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 255
+    },
+    {
+      "key": "movement",
+      "label": "职业移动力",
+      "offset": 43,
+      "kind": { "type": "u8" },
+      "min": 0,
+      "max": 15
+    },
+    {
+      "key": "player_growths",
+      "label": "职业成长修正 (%)",
+      "offset": 44,
+      "kind": { "type": "i8_array", "len": 7 },
+      "labels": ["HP", "攻", "技", "速", "运", "防", "魔防"],
+      "min": -128,
+      "max": 127
+    },
+    {
+      "key": "enemy_growths",
+      "label": "敌方职业成长率 (%)",
+      "offset": 52,
+      "kind": { "type": "u8_array", "len": 7 },
+      "labels": ["HP", "攻", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 255
+    }
+  ]
+}

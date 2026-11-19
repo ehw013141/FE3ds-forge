@@ -1,0 +1,59 @@
+:root {
+  --bg-base: #0f1218;
+  --bg-surface: #171c26;
+  --bg-elevated: #1f2634;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --text-primary: #eef2f8;
+  --text-secondary: #98a4b8;
+  --accent-primary: #5b8cff;
+  --accent-success: #38c98b;
+  --accent-danger: #f26464;
+  --radius-md: 10px;
+  --bg-hover: #293244;
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --accent-warning: #f0b44c;
+  --radius-sm: 7px;
+  --radius-lg: 14px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  font-family: "Segoe UI", "Microsoft YaHei UI", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+select {
+  font-family: inherit;
+}
+
+input:focus,
+select:focus {
+  outline: 1px solid var(--accent-primary);
+  border-color: var(--accent-primary);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.24);
+}

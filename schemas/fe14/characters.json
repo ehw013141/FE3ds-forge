@@ -1,0 +1,37 @@
+{
+  "id": "fe14_characters",
+  "game": "fe14",
+  "title": "角色成长率与属性",
+  "target_file": "RomFS/GameData/GameData.bin.lz",
+  "entry_prefix": "PID_",
+  "entry_size": 152,
+  "fields": [
+    {
+      "key": "personal_growths",
+      "label": "个人成长率 (%)",
+      "offset": 64,
+      "kind": { "type": "u8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": 0,
+      "max": 255
+    },
+    {
+      "key": "base_stats",
+      "label": "个人基础属性",
+      "offset": 56,
+      "kind": { "type": "i8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": -128,
+      "max": 127
+    },
+    {
+      "key": "cap_modifiers",
+      "label": "个人能力上限修正",
+      "offset": 72,
+      "kind": { "type": "i8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": -128,
+      "max": 127
+    }
+  ]
+}
