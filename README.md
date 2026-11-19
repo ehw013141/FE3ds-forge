@@ -15,6 +15,7 @@
 
   <p>
     <a href="#-支持作品与特性">支持作品</a> •
+    <a href="#️-工具截图">工具截图</a> •
     <a href="#-快速上手">快速上手</a> •
     <a href="#-补丁加载指南">补丁加载</a> •
     <a href="#️-开发与构建">开发构建</a>
@@ -26,13 +27,6 @@
 > [!TIP]
 > **零配置开箱即用**：无需安装任何运行库或外部解包工具，前往 [Releases 页面](https://github.com/ehw013141/FE3ds-forge/releases/latest) 下载 `FE3DS-Forge.exe` 即可双击运行。
 
-<!-- 
-💡 建议后续在这里放 1~2 张软件主界面截图，观感会直接拉满：
-把截图拖进 GitHub Issue 输入框获取图片链接，或存到 docs/preview.png 后取消下面注释：
-<div align="center">
-  <img src="docs/preview.png" alt="FE3DS Forge 主界面预览" width="85%" />
-</div>
--->
 
 ## ✨ 核心亮点
 
@@ -52,6 +46,26 @@
 | **FE14《if》** | 255 角色 + 129 职业<br>*(明文多表合并写回)* | 汉化/日英文本<br>`BCH` (ETC1A4) 头像 | 单点 `0x42D7DC`<br>*(0.5×~5× / 固定 1~100)* |
 | **FE15《回声》** | 303 角色 + 73 职业<br>*(7 维属性 / 移动力 / 成长修正)* | 合并 `Name` + `Job` 译名<br>`BCH` (ETC1A4) 头像 | 双点 `0x350B6C` + `0x353770`<br>*(战斗与白魔法同步生效)* |
 
+---
+
+## 🖼️ 工具截图
+
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/90a6d913-0a07-4698-975a-24cfb34cfe92" alt="FE3DS Forge 主界面" width="88%" />
+  <p><em>导入ROM文件或选择已解包的ROM文件目录</em></p>
+</div>
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/f730d247-7cc6-4d1c-8099-c1908c2489dd" alt="FE3DS Forge 主界面" width="88%" />
+  <p><em>主界面：角色成长率可视化编辑、头像解码与批量法则</em></p>
+</div>
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/b6a35d07-7876-4ae0-87a7-98887ab04a30" alt="FE3DS Forge 主界面" width="88%" />
+  <p><em>主界面：角色成长率可视化编辑、头像解码与批量法则</em></p>
+</div>
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/41871c6f-a0a4-46ad-ab58-8277eba03b61" alt="FE3DS Forge 主界面" width="88%" />
+  <p><em>主界面：导出补丁及金手指文件</em></p>
+</div>
 ---
 
 ## 📖 快速上手
