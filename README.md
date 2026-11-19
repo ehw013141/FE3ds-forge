@@ -96,12 +96,35 @@
 <summary><strong>📂 查看项目目录结构与常用构建命令</strong></summary>
 
 ```text
+```text
 fe3ds-forge/
 ├── crates/fe3ds-core/   # 纯 Rust 核心库（VFS / LZ11 / ISBin / Cipher / CTPK & BCH / ExeFS Patcher / Schema）
 ├── schemas/             # FE13 / FE14 / FE15 内置数据表 JSON Schema
 ├── src/                 # Vue 3 + TypeScript 前端界面
 └── src-tauri/           # Tauri v2 桌面端宿主与 Workspace 状态机
+```
 
+```powershell
+# 安装前端依赖
+npm install
 
-⚖️ 免责声明
+# 运行核心库与端到端单元测试（27 passed）
+cargo test -- --nocapture
+
+# 前端类型检查
+npx vue-tsc --noEmit
+
+# 启动开发模式
+npm run tauri dev
+
+# 打包单文件绿色 Release
+npm run tauri build -- --no-bundle
+```
+
+</details>
+
+---
+
+## ⚖️ 免责声明
+
 本项目仅用于游戏二进制数据结构研究与个人正版备份的本地化修改，不包含任何受版权保护的游戏镜像、密钥或官方资源文件。
