@@ -1,0 +1,91 @@
+name: Build & Release Windows Portable
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      label:
+        description: "手动试跑构建标签（仅生成 Artifact，不创建 Release）"
+        required: false
+        default: "dev"
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Setup Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: TypeScript type check
+        run: npx vue-tsc --noEmit
+
+      - name: Run Rust unit tests
+        run: cargo test --workspace -- --nocapture
+
+      - name: Build portable single-file executable
+        run: npm run tauri build -- --no-bundle
+
+      - name: Package release asset and SHA256
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $candidates = @(
+            "target\release\fe3ds-forge-app.exe",
+            "src-tauri\target\release\fe3ds-forge-app.exe"
+          )
+          $exe = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $exe) {
+            throw "未找到编译产物 fe3ds-forge-app.exe"
+          }
+
+          $tag = if ($env:GITHUB_REF -like "refs/tags/*") {
+            $env:GITHUB_REF_NAME
+          } else {
+            "${{ inputs.label }}"
+          }
+
+          New-Item -ItemType Directory -Force -Path "dist-release" | Out-Null
+          $outName = "FE3DS-Forge-$tag-windows-x64.exe"
+          $outPath = Join-Path "dist-release" $outName
+          Copy-Item $exe $outPath -Force
+
+          $hash = (Get-FileHash $outPath -Algorithm SHA256).Hash.ToLower()
+          "$hash  $outName" | Set-Content -Path (Join-Path "dist-release" "SHA256SUMS.txt") -Encoding UTF8
+
+          Get-ChildItem "dist-release"
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FE3DS-Forge-windows-x64
+          path: dist-release/*
+          retention-days: 14
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist-release/*.exe
+            dist-release/SHA256SUMS.txt

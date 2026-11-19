@@ -282,16 +282,85 @@ function updateScalarField(field: FieldDef, rawInput: string): void {
   scheduleSave(false);
 }
 
+const isItemTable = computed(() => payload.value?.schema.entry_prefix === "IID_");
+const skipZeroOriginal = ref(false);
+
+watch(
+  () => payload.value?.schema.id,
+  () => {
+    skipZeroOriginal.value = payload.value?.schema.entry_prefix === "IID_";
+  },
+  { immediate: true },
+);
+
+function isPlaceholderRecord(rec: TableRecord): boolean {
+  if (!isItemTable.value) return false;
+  return (
+    rec.id === "IID_無し" ||
+    rec.id === "IID_不明" ||
+    rec.id.startsWith("IID_REFINE")
+  );
+}
+
+function isZeroOriginal(orig: TableRecord | undefined, fieldKey: string): boolean {
+  const val = orig?.values[fieldKey];
+  if (!val) return true;
+  if (val.kind === "int") return val.value === 0;
+  return val.value.every((n) => n === 0);
+}
+
+const batchTargets = computed<TableRecord[]>(() => {
+  if (!payload.value || !activeBatchField.value) return [];
+  const fieldKey = activeBatchField.value.key;
+  return filteredRecords.value.filter((rec) => {
+    if (isPlaceholderRecord(rec)) return false;
+    if (skipZeroOriginal.value) {
+      const orig = payload.value!.originalRecords[rec.index];
+      if (isZeroOriginal(orig, fieldKey)) return false;
+    }
+    return true;
+  });
+});
+
+const infiniteDurabilityTargets = computed<TableRecord[]>(() => {
+  if (!payload.value || !isItemTable.value || activeBatchField.value?.key !== "uses") {
+    return [];
+  }
+  return filteredRecords.value.filter((rec) => {
+    if (isPlaceholderRecord(rec)) return false;
+    const orig = payload.value!.originalRecords[rec.index];
+    const origUses = orig?.values["uses"];
+    const origMight = orig?.values["might"];
+    return (
+      origUses?.kind === "int" &&
+      origUses.value > 0 &&
+      origMight?.kind === "int" &&
+      origMight.value > 0
+    );
+  });
+});
+
+function setWeaponsInfiniteDurability(): void {
+  const targets = infiniteDurabilityTargets.value;
+  if (targets.length === 0) return;
+  for (const rec of targets) {
+    rec.values["uses"] = { kind: "int", value: 0 };
+  }
+  activeBatchOffset.value = null;
+  scheduleSave(true);
+}
+
 function applyBatchOffset(offset: number): void {
   if (!payload.value || !activeBatchField.value) return;
   if (!Number.isFinite(offset)) return;
   const normalized = Math.trunc(offset);
   const field = activeBatchField.value;
   const { min, max } = fieldBounds(field);
-  const targets = filteredRecords.value;
+  const targets = normalized === 0 ? filteredRecords.value : batchTargets.value;
   if (targets.length === 0) return;
 
   for (const rec of targets) {
+    if (isPlaceholderRecord(rec)) continue;
     const orig = payload.value.originalRecords[rec.index];
     const baseVal = orig?.values[field.key];
     if (!baseVal) continue;
@@ -396,16 +465,28 @@ onBeforeUnmount(() => {
 
           <div class="custom-delta">
             <input v-model.number="batchDelta" type="number" class="delta-input" title="基于原版的自定义偏移值" />
-            <button class="btn-chip" @click="applyBatchOffset(batchDelta)">
+            <button class="btn-chip" :disabled="batchTargets.length === 0"
+              :title="isItemTable ? '已自动跳过占位槽' + (skipZeroOriginal ? '与原版为 0 项' : '') : ''"
+              @click="applyBatchOffset(batchDelta)">
               设为原版{{
                 Number.isFinite(batchDelta)
                   ? batchDelta >= 0
                     ? `+${batchDelta}`
                     : batchDelta
                   : "+0"
-              }}（{{ filteredRecords.length }}项）
+              }}（{{ batchTargets.length }}项）
             </button>
           </div>
+
+          <label v-if="isItemTable" class="filter-toggle" title="开启后，批量偏移自动跳过该字段原版为 0 的条目（防止误改伤药、盾牌等非武器项）">
+            <input v-model="skipZeroOriginal" type="checkbox" />
+            <span>跳过原版为0</span>
+          </label>
+
+          <button v-if="infiniteDurabilityTargets.length > 0" class="btn-chip accent"
+            title="仅将原版威力 > 0 且耐久 > 0 的武器耐久设为 0（无限），不误伤伤药等消耗品" @click="setWeaponsInfiniteDurability">
+            武器无限耐久（{{ infiniteDurabilityTargets.length }}项）
+          </button>
 
           <button class="btn-chip danger" :disabled="payload.modifiedCount === 0" @click="resetAllRecords">
             全表还原
@@ -1005,5 +1086,4 @@ onBeforeUnmount(() => {
   background: transparent;
   padding: 4px 9px;
 }
-
 </style>
