@@ -21,16 +21,19 @@ use serde::{Deserialize, Serialize};
 const BUILTIN_FE13_SCHEMAS: &[&str] = &[
     include_str!("../../schemas/fe13/characters.json"),
     include_str!("../../schemas/fe13/classes.json"),
+    include_str!("../../schemas/fe13/items.json"),
 ];
 
 const BUILTIN_FE14_SCHEMAS: &[&str] = &[
     include_str!("../../schemas/fe14/characters.json"),
     include_str!("../../schemas/fe14/classes.json"),
+    include_str!("../../schemas/fe14/items.json"),
 ];
 
 const BUILTIN_FE15_SCHEMAS: &[&str] = &[
     include_str!("../../schemas/fe15/characters.json"),
     include_str!("../../schemas/fe15/classes.json"),
+    include_str!("../../schemas/fe15/items.json"),
 ];
 
 #[derive(Default)]
@@ -281,17 +284,26 @@ impl LoadedWorkspace {
         };
 
         let msg_candidates: &[&str] = if game_id == "fe15" {
-            &[
-                "m/@J/Name.bin.lz",
-                "m/@J/Job.bin.lz",
-                "m/@E/Name.bin.lz",
-                "m/@E/Job.bin.lz",
-                "m/Name.bin.lz",
-                "m/Job.bin.lz",
-            ]
-        } else {
-            &["m/GameData.bin.lz", "m/@E/GameData.bin.lz", "m/@J/GameData.bin.lz"]
-        };
+    &[
+        "m/Name.bin.lz",
+        "m/Job.bin.lz",
+        "m/Item.bin.lz",
+        "m/@E/Name.bin.lz",
+        "m/@E/Job.bin.lz",
+        "m/@E/Item.bin.lz",
+        "m/@J/Name.bin.lz",
+        "m/@J/Job.bin.lz",
+        "m/@J/Item.bin.lz",
+        "m/@JPN_TW/Name.bin.lz",
+        "m/@JPN_TW/Job.bin.lz",
+        "m/@JPN_TW/Item.bin.lz",
+        "m/@JPN_CN/Name.bin.lz",
+        "m/@JPN_CN/Job.bin.lz",
+        "m/@JPN_CN/Item.bin.lz",
+    ]
+} else {
+    &["m/GameData.bin.lz", "m/@E/GameData.bin.lz", "m/@J/GameData.bin.lz"]
+};
 
         let mut merged_messages: Option<MessageArchive> = None;
         for &p in msg_candidates {

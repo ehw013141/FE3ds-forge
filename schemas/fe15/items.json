@@ -1,0 +1,26 @@
+{
+  "id": "fe15_items",
+  "game": "fe15",
+  "title": "武器、装备与魔法属性",
+  "target_file": "RomFS/Data/Item.bin.lz",
+  "entry_prefix": "IID_",
+  "entry_size": 224,
+  "fields": [
+    { "key": "might", "label": "威力", "offset": 48, "kind": { "type": "u8" }, "min": 0, "max": 255 },
+    { "key": "weight", "label": "重量", "offset": 49, "kind": { "type": "u8" }, "min": 0, "max": 255 },
+    { "key": "hit", "label": "命中", "offset": 52, "kind": { "type": "u8" }, "min": 0, "max": 255 },
+    { "key": "crit", "label": "必杀", "offset": 54, "kind": { "type": "u8" }, "min": 0, "max": 255 },
+    { "key": "min_range", "label": "最小射程", "offset": 50, "kind": { "type": "u8" }, "min": 0, "max": 15 },
+    { "key": "max_range", "label": "最大射程", "offset": 51, "kind": { "type": "u8" }, "min": 0, "max": 15 },
+    { "key": "hp_cost", "label": "魔法 HP 消耗", "offset": 136, "kind": { "type": "u8" }, "min": 0, "max": 99 },
+    {
+      "key": "stat_bonuses",
+      "label": "装备能力加成",
+      "offset": 60,
+      "kind": { "type": "i8_array", "len": 7 },
+      "labels": ["HP", "攻", "技", "速", "运", "防", "魔防"],
+      "min": -30,
+      "max": 30
+    }
+  ]
+}

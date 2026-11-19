@@ -1,0 +1,29 @@
+{
+  "id": "fe14_items",
+  "game": "fe14",
+  "title": "武器与道具属性",
+  "target_file": "RomFS/GameData/GameData.bin.lz",
+  "entry_prefix": "IID_",
+  "entry_size": 104,
+  "fields": [
+    { "key": "might", "label": "威力", "offset": 31, "kind": { "type": "u8" }, "min": 0, "max": 255 },
+    { "key": "hit", "label": "命中", "offset": 32, "kind": { "type": "u16" }, "min": 0, "max": 255 },
+    { "key": "crit", "label": "必杀", "offset": 34, "kind": { "type": "u16" }, "min": 0, "max": 255 },
+    { "key": "avoid", "label": "回避修正", "offset": 36, "kind": { "type": "i16" }, "min": -100, "max": 100 },
+    { "key": "dodge", "label": "必杀回避修正", "offset": 38, "kind": { "type": "i16" }, "min": -100, "max": 100 },
+    { "key": "uses", "label": "使用次数 (0=无限)", "offset": 30, "kind": { "type": "u8" }, "min": 0, "max": 255 },
+    { "key": "min_range", "label": "最小射程", "offset": 40, "kind": { "type": "u8" }, "min": 0, "max": 15 },
+    { "key": "max_range", "label": "最大射程", "offset": 41, "kind": { "type": "u8" }, "min": 0, "max": 15 },
+    { "key": "follow_up_mod", "label": "追击速度修正", "offset": 42, "kind": { "type": "i8" }, "min": -20, "max": 20 },
+    { "key": "price", "label": "买入价格", "offset": 44, "kind": { "type": "u32" }, "min": 0, "max": 999999 },
+    {
+      "key": "stat_bonuses",
+      "label": "装备能力加成",
+      "offset": 56,
+      "kind": { "type": "i8_array", "len": 8 },
+      "labels": ["HP", "力", "魔", "技", "速", "运", "防", "魔防"],
+      "min": -30,
+      "max": 30
+    }
+  ]
+}
