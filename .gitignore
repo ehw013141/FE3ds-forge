@@ -6,3 +6,5 @@
 *.cci
 *.3ds
 *.cia
+__pycache__/
+*.pyc
