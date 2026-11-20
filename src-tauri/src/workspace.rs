@@ -12,6 +12,11 @@ use fe3ds_core::exefs_patcher::{
     CODE_VADDR_BASE,
 };
 use fe3ds_core::exporter::{export_mod_bundle, ExportReport, ExportRequest, RomFsFilePatch};
+use fe3ds_core::growth_rules::{
+    apply_fe13_support_speed, apply_fe13_weapon_exp, apply_fe14_support_speed,
+    apply_fe15_art_sp, apply_fe15_support_speed, GrowthPatchStat, GrowthRulesConfig,
+    SupportSpeedPreset, WeaponExpPreset,
+};
 use fe3ds_core::lz11::decompress_lz11;
 use fe3ds_core::message::MessageArchive;
 use fe3ds_core::schema::{TableEngine, TableRecord, TableSchema};
@@ -143,6 +148,7 @@ pub struct LoadedWorkspace {
     code_bin: Option<Vec<u8>>,
     exp_site_offset: Option<usize>,
     exp_mode: ExpPatchMode,
+    growth_rules: GrowthRulesConfig,
     source: RomSource,
     portrait_cache: HashMap<String, Option<String>>,
 }
@@ -170,6 +176,7 @@ pub struct WorkspaceSummary {
     pub exp_site_offset: Option<usize>,
     pub exp_site_vaddr: Option<u32>,
     pub exp_mode: ExpPatchMode,
+    pub growth_rules: GrowthRulesConfig,
     pub tables: Vec<TableMeta>,
 }
 
@@ -192,7 +199,16 @@ pub struct ExpPatchPreview {
     pub ips_bytes: Option<usize>,
     pub cheat_text: Option<String>,
 }
-
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GrowthRulesPreview {
+    pub config: GrowthRulesConfig,
+    pub active: bool,
+    pub support_supported: bool,
+    pub weapon_exp_supported: bool,
+    pub support_stat: Option<GrowthPatchStat>,
+    pub weapon_exp_stat: Option<GrowthPatchStat>,
+}
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExportWorkspaceArgs {
@@ -396,6 +412,7 @@ impl LoadedWorkspace {
             code_bin,
             exp_site_offset,
             exp_mode: ExpPatchMode::Vanilla,
+            growth_rules: GrowthRulesConfig::default(),
             source,
             portrait_cache: HashMap::new(),
         })
@@ -428,6 +445,7 @@ impl LoadedWorkspace {
                 .exp_site_offset
                 .map(|off| (off as u32) + CODE_VADDR_BASE),
             exp_mode: self.exp_mode,
+            growth_rules: self.growth_rules,
             tables,
         }
     }
@@ -517,6 +535,77 @@ impl LoadedWorkspace {
         })
     }
 
+    fn read_raw_archive_bytes(&self, rel_in_romfs: &str) -> Result<(Vec<u8>, bool), String> {
+        let key = rel_in_romfs.to_ascii_lowercase();
+        if let Some(loaded) = self.archives.get(&key) {
+            return Ok((loaded.base_archive.clone().into_bytes(), loaded.is_lz13));
+        }
+        self.source.read_romfs_lz(rel_in_romfs)
+    }
+
+    pub fn set_growth_rules(
+        &mut self,
+        mut config: GrowthRulesConfig,
+    ) -> Result<GrowthRulesPreview, String> {
+        let support_supported = matches!(self.game_id.as_str(), "fe13" | "fe14" | "fe15");
+        let weapon_exp_supported = matches!(self.game_id.as_str(), "fe13" | "fe15");
+
+        if !support_supported {
+            config.support_speed = SupportSpeedPreset::Vanilla;
+        }
+        if !weapon_exp_supported {
+            config.weapon_exp = WeaponExpPreset::Vanilla;
+        }
+
+        let support_stat = if config.support_speed != SupportSpeedPreset::Vanilla {
+            let stat = match self.game_id.as_str() {
+                "fe13" => {
+                    let (mut raw, _) = self.read_raw_archive_bytes("data/person/static.bin.lz")?;
+                    apply_fe13_support_speed(&mut raw, config.support_speed)?
+                }
+                "fe14" => {
+                    let (mut raw, _) = self.read_raw_archive_bytes("GameData/GameData.bin.lz")?;
+                    apply_fe14_support_speed(&mut raw, config.support_speed)?
+                }
+                "fe15" => {
+                    let (mut raw, _) = self.read_raw_archive_bytes("Data/Reliance.bin.lz")?;
+                    apply_fe15_support_speed(&mut raw, config.support_speed)?
+                }
+                _ => unreachable!(),
+            };
+            Some(stat)
+        } else {
+            None
+        };
+
+        let weapon_exp_stat = if config.weapon_exp != WeaponExpPreset::Vanilla {
+            let stat = match self.game_id.as_str() {
+                "fe13" => {
+                    let (mut raw, _) = self.read_raw_archive_bytes("data/GameData.bin.lz")?;
+                    apply_fe13_weapon_exp(&mut raw, config.weapon_exp)?
+                }
+                "fe15" => {
+                    let (mut raw, _) = self.read_raw_archive_bytes("Data/Skill.bin.lz")?;
+                    apply_fe15_art_sp(&mut raw, config.weapon_exp)?
+                }
+                _ => unreachable!(),
+            };
+            Some(stat)
+        } else {
+            None
+        };
+
+        self.growth_rules = config;
+        Ok(GrowthRulesPreview {
+            config,
+            active: !config.is_vanilla(),
+            support_supported,
+            weapon_exp_supported,
+            support_stat,
+            weapon_exp_stat,
+        })
+    }
+
     pub fn export(&self, args: &ExportWorkspaceArgs) -> Result<ExportReport, String> {
         let out_dir = PathBuf::from(args.output_dir.trim());
         if out_dir.as_os_str().is_empty() {
@@ -524,19 +613,27 @@ impl LoadedWorkspace {
         }
 
         let mut dirty_by_archive: HashMap<String, Vec<&LoadedTable>> = HashMap::new();
+        let mut dirty_archive_order: Vec<String> = Vec::new();
         for table_id in &self.table_order {
             if let Some(table) = self.tables.get(table_id) {
                 if count_modified(&table.original_records, &table.current_records) > 0 {
-                    dirty_by_archive
+                    let entry = dirty_by_archive
                         .entry(table.archive_key.clone())
-                        .or_default()
-                        .push(table);
+                        .or_insert_with(|| {
+                            dirty_archive_order.push(table.archive_key.clone());
+                            Vec::new()
+                        });
+                    entry.push(table);
                 }
             }
         }
 
-        let mut romfs_patches = Vec::new();
-        for (archive_key, dirty_tables) in dirty_by_archive {
+        // 暂存所有待导出的 RomFS 文件，便于将表格修改与成长加速规则叠加到同一归档
+        let mut staged_order: Vec<String> = Vec::new();
+        let mut staged_files: HashMap<String, (String, bool, Vec<u8>)> = HashMap::new();
+
+        for archive_key in dirty_archive_order {
+            let dirty_tables = &dirty_by_archive[&archive_key];
             let loaded = self
                 .archives
                 .get(&archive_key)
@@ -551,12 +648,98 @@ impl LoadedWorkspace {
                 )
                 .map_err(|e| format!("写回 {} 失败: {e}", table.schema.id))?;
             }
-            romfs_patches.push(RomFsFilePatch {
-                rel_path: loaded.rel_path.clone(),
-                raw_data: working.into_bytes(),
-                add_lz13_wrapper: loaded.is_lz13,
-            });
+            staged_order.push(archive_key.clone());
+            staged_files.insert(
+                archive_key,
+                (loaded.rel_path.clone(), loaded.is_lz13, working.into_bytes()),
+            );
         }
+
+        let ensure_staged = |order: &mut Vec<String>,
+                             files: &mut HashMap<String, (String, bool, Vec<u8>)>,
+                             rel_in_romfs: &str,
+                             export_rel_path: &str|
+         -> Result<String, String> {
+            let key = rel_in_romfs.to_ascii_lowercase();
+            if !files.contains_key(&key) {
+                let (raw, is_lz13) = self.read_raw_archive_bytes(rel_in_romfs)?;
+                order.push(key.clone());
+                files.insert(key.clone(), (export_rel_path.to_string(), is_lz13, raw));
+            }
+            Ok(key)
+        };
+
+        if self.growth_rules.support_speed != SupportSpeedPreset::Vanilla {
+            match self.game_id.as_str() {
+                "fe13" => {
+                    let key = ensure_staged(
+                        &mut staged_order,
+                        &mut staged_files,
+                        "data/person/static.bin.lz",
+                        "RomFS/data/person/static.bin.lz",
+                    )?;
+                    let raw = &mut staged_files.get_mut(&key).unwrap().2;
+                    apply_fe13_support_speed(raw, self.growth_rules.support_speed)?;
+                }
+                "fe14" => {
+                    let key = ensure_staged(
+                        &mut staged_order,
+                        &mut staged_files,
+                        "GameData/GameData.bin.lz",
+                        "RomFS/GameData/GameData.bin.lz",
+                    )?;
+                    let raw = &mut staged_files.get_mut(&key).unwrap().2;
+                    apply_fe14_support_speed(raw, self.growth_rules.support_speed)?;
+                }
+                "fe15" => {
+                    let key = ensure_staged(
+                        &mut staged_order,
+                        &mut staged_files,
+                        "Data/Reliance.bin.lz",
+                        "RomFS/Data/Reliance.bin.lz",
+                    )?;
+                    let raw = &mut staged_files.get_mut(&key).unwrap().2;
+                    apply_fe15_support_speed(raw, self.growth_rules.support_speed)?;
+                }
+                _ => {}
+            }
+        }
+
+        if self.growth_rules.weapon_exp != WeaponExpPreset::Vanilla {
+            match self.game_id.as_str() {
+                "fe13" => {
+                    let key = ensure_staged(
+                        &mut staged_order,
+                        &mut staged_files,
+                        "data/GameData.bin.lz",
+                        "RomFS/data/GameData.bin.lz",
+                    )?;
+                    let raw = &mut staged_files.get_mut(&key).unwrap().2;
+                    apply_fe13_weapon_exp(raw, self.growth_rules.weapon_exp)?;
+                }
+                "fe15" => {
+                    let key = ensure_staged(
+                        &mut staged_order,
+                        &mut staged_files,
+                        "Data/Skill.bin.lz",
+                        "RomFS/Data/Skill.bin.lz",
+                    )?;
+                    let raw = &mut staged_files.get_mut(&key).unwrap().2;
+                    apply_fe15_art_sp(raw, self.growth_rules.weapon_exp)?;
+                }
+                _ => {}
+            }
+        }
+
+        let romfs_patches: Vec<RomFsFilePatch> = staged_order
+            .into_iter()
+            .filter_map(|key| staged_files.remove(&key))
+            .map(|(rel_path, add_lz13_wrapper, raw_data)| RomFsFilePatch {
+                rel_path,
+                raw_data,
+                add_lz13_wrapper,
+            })
+            .collect();
 
         let mut code_patches = Vec::new();
         if self.exp_mode != ExpPatchMode::Vanilla {
@@ -570,7 +753,7 @@ impl LoadedWorkspace {
         }
 
         if romfs_patches.is_empty() && code_patches.is_empty() {
-            return Err("当前尚未修改任何成长率或经验规则，无需导出".to_string());
+            return Err("当前尚未修改任何数据表、成长加速或经验规则，无需导出".to_string());
         }
 
         let title = if args.cheat_title.trim().is_empty() {

@@ -60,6 +60,30 @@ export type ExpPatchMode =
   | { mode: "multiplier"; preset: ExpMultiplier }
   | { mode: "fixed"; value: number };
 
+export type SupportSpeedPreset = "vanilla" | "fast2x" | "fast4x" | "instant";
+
+export type WeaponExpPreset = "vanilla" | "fast2x" | "fast5x" | "fast10x" | "instant";
+
+export interface GrowthRulesConfig {
+  supportSpeed: SupportSpeedPreset;
+  weaponExp: WeaponExpPreset;
+}
+
+export interface GrowthPatchStat {
+  modifiedEntries: number;
+  sampleBefore: number[];
+  sampleAfter: number[];
+}
+
+export interface GrowthRulesPreview {
+  config: GrowthRulesConfig;
+  active: boolean;
+  supportSupported: boolean;
+  weaponExpSupported: boolean;
+  supportStat: GrowthPatchStat | null;
+  weaponExpStat: GrowthPatchStat | null;
+}
+
 export interface TableMeta {
   id: string;
   title: string;
@@ -97,6 +121,7 @@ export interface WorkspaceSummary {
   expSiteOffset: number | null;
   expSiteVaddr: number | null;
   expMode: ExpPatchMode;
+  growthRules: GrowthRulesConfig;
   tables: TableMeta[];
 }
 

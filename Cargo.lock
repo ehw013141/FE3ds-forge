@@ -821,7 +821,7 @@ dependencies = [
 
 [[package]]
 name = "fe3ds-core"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "encoding_rs",
  "png",
@@ -832,7 +832,7 @@ dependencies = [
 
 [[package]]
 name = "fe3ds-forge-app"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "fe3ds-core",
  "serde",

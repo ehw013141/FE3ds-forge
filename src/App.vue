@@ -2,14 +2,15 @@
 import { computed, onMounted, ref } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
 import ExpRulePanel from "./components/ExpRulePanel.vue";
+import GrowthRulePanel from "./components/GrowthRulePanel.vue";
 import ExportDrawer from "./components/ExportDrawer.vue";
 import TableWorkbench from "./components/TableWorkbench.vue";
 import { ipc } from "./services/ipc";
-import type { AppBootstrapInfo, ExpPatchMode, WorkspaceSummary } from "./types/ipc";
+import type { AppBootstrapInfo, ExpPatchMode, GrowthRulesConfig, WorkspaceSummary } from "./types/ipc";
 
 const bootstrap = ref<AppBootstrapInfo | null>(null);
 const summary = ref<WorkspaceSummary | null>(null);
-const activeView = ref<"table" | "exp">("table");
+const activeView = ref<"table" | "growth" | "exp">("table");
 const activeTableId = ref<string>("");
 const exportDrawerOpen = ref<boolean>(false);
 
@@ -23,7 +24,10 @@ const totalModifiedCount = computed<number>(() => {
   if (!summary.value) return 0;
   const tableMods = summary.value.tables.reduce((acc, t) => acc + t.modifiedCount, 0);
   const expMod = summary.value.expMode.mode === "vanilla" ? 0 : 1;
-  return tableMods + expMod;
+  const growthMod =
+    (summary.value.growthRules.supportSpeed !== "vanilla" ? 1 : 0) +
+    (summary.value.growthRules.weaponExp !== "vanilla" ? 1 : 0);
+  return tableMods + expMod + growthMod;
 });
 
 async function loadDirectory(dir: string): Promise<void> {
@@ -118,6 +122,11 @@ function handleTableModified(payload: { tableId: string; modifiedCount: number }
 function handleExpModeChange(mode: ExpPatchMode): void {
   if (!summary.value) return;
   summary.value.expMode = mode;
+}
+
+function handleGrowthRulesChange(config: GrowthRulesConfig): void {
+  if (!summary.value) return;
+  summary.value.growthRules = config;
 }
 
 function selectTable(tableId: string): void {
@@ -224,7 +233,24 @@ onMounted(async () => {
               </span>
             </button>
           </div>
-
+          <div class="nav-group">
+            <div class="nav-heading">RomFS 成长加速</div>
+            <button class="nav-item" :class="{ active: activeView === 'growth' }" @click="activeView = 'growth'">
+              <span class="nav-title">支援与熟练度</span>
+              <span class="nav-count" :class="{
+                dirty:
+                  summary.growthRules.supportSpeed !== 'vanilla' ||
+                  summary.growthRules.weaponExp !== 'vanilla',
+              }">
+                {{
+                  summary.growthRules.supportSpeed === "vanilla" &&
+                    summary.growthRules.weaponExp === "vanilla"
+                    ? "原版"
+                    : "已启用"
+                }}
+              </span>
+            </button>
+          </div>
           <div class="nav-group">
             <div class="nav-heading">ExeFS 逻辑补丁</div>
             <button class="nav-item" :class="{ active: activeView === 'exp' }" @click="activeView = 'exp'">
@@ -239,7 +265,8 @@ onMounted(async () => {
         <main class="main-stage">
           <TableWorkbench v-if="activeView === 'table' && activeTableId" :table-id="activeTableId"
             @modified-change="handleTableModified" />
-
+          <GrowthRulePanel :current-config="summary.growthRules" :game-id="summary.gameId"
+            @config-change="handleGrowthRulesChange" v-else-if="activeView === 'growth'" />
           <ExpRulePanel v-else :has-code-bin="summary.hasCodeBin" :exp-site-offset="summary.expSiteOffset"
             :exp-site-vaddr="summary.expSiteVaddr" :current-mode="summary.expMode" @mode-change="handleExpModeChange" />
         </main>

@@ -3,12 +3,13 @@ use fe3ds_core::exefs_patcher::ExpPatchMode;
 use fe3ds_core::exporter::ExportReport;
 use fe3ds_core::schema::TableRecord;
 use fe3ds_core::vfs::ExtractReport;
+use fe3ds_core::growth_rules::GrowthRulesConfig;
 use tauri::State;
 
 mod workspace;
 use workspace::{
     ExpPatchPreview, ExportWorkspaceArgs, LoadedWorkspace, TableDataPayload, WorkspaceState,
-    WorkspaceSummary,
+    WorkspaceSummary,GrowthRulesPreview,
 };
 use serde::Serialize;
 
@@ -105,6 +106,19 @@ fn set_exp_patch(
 }
 
 #[tauri::command]
+fn set_growth_rules(
+    config: GrowthRulesConfig,
+    state: State<'_, WorkspaceState>,
+) -> Result<GrowthRulesPreview, String> {
+    let mut guard = state
+        .inner
+        .lock()
+        .map_err(|_| "工作区状态锁异常".to_string())?;
+    let ws = guard.as_mut().ok_or_else(|| "尚未打开游戏目录".to_string())?;
+    ws.set_growth_rules(config)
+}
+
+#[tauri::command]
 fn export_workspace(
     args: ExportWorkspaceArgs,
     state: State<'_, WorkspaceState>,
@@ -154,6 +168,7 @@ tauri::Builder::default()
             get_table_data,
             save_table_records,
             set_exp_patch,
+            set_growth_rules,
             export_workspace,
             get_portrait,
             extract_rom

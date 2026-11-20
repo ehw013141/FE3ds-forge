@@ -8,3 +8,4 @@ pub mod message;
 pub mod exefs_patcher;
 pub mod exporter;
 pub mod schema;
+pub mod growth_rules;
