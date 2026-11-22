@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::error::{CoreError, CoreResult};
+use crate::growth_rules::WeaponExpPreset;
 
 pub const CODE_VADDR_BASE: u32 = 0x0010_0000;
 
@@ -25,6 +26,32 @@ pub const FE15_EXP_AOB: [u8; 24] = [
     0x01, 0x00, 0x00, 0xAA, // BGE   +1
     0x01, 0x00, 0x50, 0xE3, // CMP   R0, #1
     0x01, 0x00, 0xA0, 0xD3, // MOVLE R0, #1
+];
+
+/// FE14 用杖武器熟练度 AOB（`0x332010`，`+8` 为 `MOV R2, #2`）
+pub const FE14_WEXP_STAFF_AOB: [u8; 16] = [
+    0x00, 0x60, 0xA0, 0xE1, // MOV  R6, R0
+    0x3C, 0x00, 0x95, 0xE5, // LDR  R0, [R5, #0x3C]
+    0x02, 0x20, 0xA0, 0xE3, // MOV  R2, #2
+    0x07, 0x10, 0xA0, 0xE1, // MOV  R1, R7
+];
+
+/// FE14 攻方战后武器熟练度结算 AOB（`0x442278`，无 BL 偏移）
+pub const FE14_WEXP_ATK_AOB: [u8; 20] = [
+    0xD1, 0x00, 0xD0, 0xE1, // LDRSB R0, [R0, #1]
+    0xD1, 0x10, 0xD7, 0xE1, // LDRSB R1, [R7, #1]
+    0x05, 0x00, 0x80, 0xE0, // ADD   R0, R0, R5
+    0x10, 0x20, 0xD0, 0xE5, // LDRB  R2, [R0, #0x10]
+    0x06, 0x00, 0xA0, 0xE1, // MOV   R0, R6
+];
+
+/// FE14 守方战后武器熟练度结算 AOB（`0x442414`，无 BL 偏移）
+pub const FE14_WEXP_DEF_AOB: [u8; 20] = [
+    0xD1, 0x00, 0xD0, 0xE1, // LDRSB R0, [R0, #1]
+    0xD1, 0x10, 0xD6, 0xE1, // LDRSB R1, [R6, #1]
+    0x05, 0x00, 0x80, 0xE0, // ADD   R0, R0, R5
+    0x10, 0x20, 0xD0, 0xE5, // LDRB  R2, [R0, #0x10]
+    0x07, 0x00, 0xA0, 0xE1, // MOV   R0, R7
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -249,6 +276,55 @@ pub fn build_exp_patches(
         other => Err(CoreError::Schema(format!("暂不支持该作品的经验补丁: {other}"))),
     }
 }
+/// 生成 FE14 武器熟练度加速补丁（攻方战后 + 守方战后 + 用杖，共 3 处零副作用注入点）。
+pub fn build_fe14_wexp_patches(
+    code: &[u8],
+    preset: WeaponExpPreset,
+) -> CoreResult<Vec<CodePatchRecord>> {
+    let (battle_scale_insn, staff_val): (u32, u8) = match preset {
+        WeaponExpPreset::Vanilla => return Ok(Vec::new()),
+        WeaponExpPreset::Fast2x => (0xE1A0_2082, 4),   // MOV R2, R2, LSL #1  (2x)
+        WeaponExpPreset::Fast5x => (0xE082_2102, 10),  // ADD R2, R2, R2, LSL #2 (5x)
+        WeaponExpPreset::Fast10x => (0xE1A0_2182, 16), // MOV R2, R2, LSL #3  (8x)
+        WeaponExpPreset::Instant => (0xE1A0_2402, 251), // MOV R2, R2, LSL #8 (自动封顶至职业上限)
+    };
+
+    let staff_site = find_aob(code, &FE14_WEXP_STAFF_AOB)
+        .ok_or_else(|| CoreError::PatternNotFound("FE14 用杖熟练度 AOB 未命中".into()))?;
+    let atk_site = find_aob(code, &FE14_WEXP_ATK_AOB)
+        .ok_or_else(|| CoreError::PatternNotFound("FE14 攻方武器熟练度 AOB 未命中".into()))?;
+    let def_site = find_aob(code, &FE14_WEXP_DEF_AOB)
+        .ok_or_else(|| CoreError::PatternNotFound("FE14 守方武器熟练度 AOB 未命中".into()))?;
+
+    // 合并重复的武器类型读取，腾出 1 条指令槽位原位缩放 R2（保持 R2==0 不变）
+    let battle_insns: [u32; 4] = [
+        0xE1D0_10D1,       // LDRSB R1, [R0, #1]
+        0xE081_0005,       // ADD   R0, R1, R5
+        0xE5D0_2010,       // LDRB  R2, [R0, #0x10]
+        battle_scale_insn, // 缩放 R2
+    ];
+    let mut battle_payload = Vec::with_capacity(16);
+    for insn in battle_insns {
+        battle_payload.extend_from_slice(&insn.to_le_bytes());
+    }
+
+    let staff_insn: u32 = 0xE3A0_2000 | (staff_val as u32); // MOV R2, #staff_val
+
+    Ok(vec![
+        CodePatchRecord {
+            file_offset: staff_site + 8,
+            payload: staff_insn.to_le_bytes().to_vec(),
+        },
+        CodePatchRecord {
+            file_offset: atk_site,
+            payload: battle_payload.clone(),
+        },
+        CodePatchRecord {
+            file_offset: def_site,
+            payload: battle_payload,
+        },
+    ])
+}
 /// 构建标准 3DS IPS 补丁（可直接保存为 `mods/{TitleID}/exefs/code.ips`）。
 pub fn build_ips(records: &[CodePatchRecord]) -> CoreResult<Vec<u8>> {
     let mut sorted: Vec<&CodePatchRecord> = records.iter().collect();
@@ -426,5 +502,26 @@ mod tests {
             "[PASS] FE14 code.bin AOB 命中 0x42D7DC | IPS={}B | 2x EXP 补丁生成正常",
             ips.len()
         );
+    }
+    
+    #[test]
+    fn verify_real_fe14_wexp_code_bin_if_present() {
+        let code_path = Path::new(r"D:\fe14\ExeFS\code.bin");
+        if !code_path.exists() {
+            return;
+        }
+        let code = std::fs::read(code_path).unwrap();
+        let recs = build_fe14_wexp_patches(&code, WeaponExpPreset::Fast5x).unwrap();
+        assert_eq!(recs.len(), 3);
+        assert_eq!(recs[0].file_offset, 0x332018);
+        assert_eq!(recs[1].file_offset, 0x442278);
+        assert_eq!(recs[2].file_offset, 0x442414);
+
+        let ips = build_ips(&recs).unwrap();
+        assert!(ips.starts_with(b"PATCH") && ips.ends_with(b"EOF"));
+        let cheat = build_azahar_cheat_multi("FE14 5x Weapon EXP", &recs).unwrap();
+        assert!(cheat.contains("00432018 E3A0200A"));
+        assert!(cheat.contains("00542284 E0822102"));
+        assert!(cheat.contains("00542420 E0822102"));
     }
 }

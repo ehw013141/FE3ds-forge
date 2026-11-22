@@ -3,7 +3,7 @@ use std::path::{Component, Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::error::{CoreError, CoreResult};
-use crate::exefs_patcher::{build_azahar_cheat, build_ips, CodePatchRecord};
+use crate::exefs_patcher::{build_azahar_cheat_multi, build_ips, CodePatchRecord};
 use crate::lz11::compress_lz11;
 
 #[derive(Debug, Clone)]
@@ -63,20 +63,12 @@ pub fn export_mod_bundle(req: &ExportRequest) -> CoreResult<ExportReport> {
 
     let mut cheat_written = false;
     if req.export_cheat && !req.code_patches.is_empty() {
-        let mut blocks = Vec::with_capacity(req.code_patches.len());
-        for (idx, rec) in req.code_patches.iter().enumerate() {
-            let title = if req.code_patches.len() == 1 {
-                req.cheat_title.clone()
-            } else {
-                format!("{} #{}", req.cheat_title, idx + 1)
-            };
-            blocks.push(build_azahar_cheat(&title, rec)?);
-        }
+        let cheat_text = build_azahar_cheat_multi(&req.cheat_title, &req.code_patches)?;
         let dest = req.output_dir.join("cheats.txt");
         if let Some(parent) = dest.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        std::fs::write(&dest, blocks.join("\n"))?;
+        std::fs::write(&dest, cheat_text)?;
         written_files.push(dest);
         cheat_written = true;
     }

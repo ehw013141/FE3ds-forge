@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from "vue";
+import { computed, ref, watch } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ipc } from "../services/ipc";
 import type { ExportReport, WorkspaceSummary } from "../types/ipc";
@@ -15,17 +15,54 @@ const emit = defineEmits<{
   (e: "close"): void;
 }>();
 
-const outputDir = ref<string>(props.defaultOutputDir);
+function joinGameSubdir(baseDir: string, gameId: string): string {
+  const trimmed = baseDir.trim().replace(/[\\/]+$/, "");
+  if (!trimmed) return gameId;
+  const sep = trimmed.includes("\\") ? "\\" : "/";
+  return `${trimmed}${sep}${gameId}`;
+}
+
+const gameDefaultDir = computed(() =>
+  joinGameSubdir(props.defaultOutputDir, props.summary.gameId),
+);
+
+const hasExefsCodePatch = computed(
+  () =>
+    props.summary.expMode.mode !== "vanilla" ||
+    (props.summary.gameId === "fe14" &&
+      props.summary.growthRules.weaponExp !== "vanilla"),
+);
+
+const hasGrowthRules = computed(
+  () =>
+    props.summary.growthRules.supportSpeed !== "vanilla" ||
+    props.summary.growthRules.weaponExp !== "vanilla",
+);
+
+const outputDir = ref<string>(gameDefaultDir.value);
 const userCustomizedDir = ref<boolean>(false);
 
 watch(
-  () => props.defaultOutputDir,
-  (nextDir) => {
-    if (!userCustomizedDir.value && nextDir) {
-      outputDir.value = nextDir;
-    }
+  () => [props.summary.gameId, props.summary.rootDir],
+  () => {
+    userCustomizedDir.value = false;
+    outputDir.value = gameDefaultDir.value;
+    report.value = null;
+    errorMsg.value = null;
   },
 );
+
+watch(gameDefaultDir, (nextDir) => {
+  if (!userCustomizedDir.value && nextDir) {
+    outputDir.value = nextDir;
+  }
+});
+
+function resetToGameDefaultDir(): void {
+  userCustomizedDir.value = false;
+  outputDir.value = gameDefaultDir.value;
+}
+
 const exportIps = ref<boolean>(true);
 const exportCheat = ref<boolean>(true);
 const cheatTitle = ref<string>("");
@@ -33,7 +70,6 @@ const cheatTitle = ref<string>("");
 const exporting = ref(false);
 const errorMsg = ref<string | null>(null);
 const report = ref<ExportReport | null>(null);
-
 async function pickOutputDir(): Promise<void> {
   try {
     const selected = await open({
@@ -83,28 +119,25 @@ async function runExport(): Promise<void> {
       <div class="drawer-body">
         <div class="summary-box">
           <div class="sum-row">
-            <span>当前游戏</span>
-            <strong>{{ props.summary.gameTitle }}</strong>
-          </div>
-          <div class="sum-row">
-            <span>待导出修改</span>
-            <strong :class="{ ok: props.totalModifiedCount > 0 }">
-              {{ props.totalModifiedCount }} 项
+            <span>支援与熟练度</span>
+            <strong>
+              {{ hasGrowthRules ? "已启用加速规则" : "原版" }}
             </strong>
           </div>
           <div class="sum-row">
-            <span>经验规则</span>
+            <span>ExeFS 代码补丁</span>
             <strong>
-              {{ props.summary.expMode.mode === "vanilla" ? "原版（不生成代码补丁）" : "已启用 ExeFS 补丁" }}
+              {{ hasExefsCodePatch ? "将生成 code.ips / cheats.txt" : "未启用（仅导 RomFS）" }}
             </strong>
           </div>
         </div>
 
         <label class="field-group">
-          <span>导出目标目录</span>
+          <span>导出目标目录（默认按作品分文件夹，手动选模拟器目录不套壳）</span>
           <div class="path-row">
             <input v-model="outputDir" type="text" placeholder="选择导出文件夹..." @input="userCustomizedDir = true" />
             <button class="btn-sec" @click="pickOutputDir">浏览</button>
+            <button v-if="userCustomizedDir" class="btn-sec" @click="resetToGameDefaultDir">恢复默认</button>
           </div>
         </label>
 

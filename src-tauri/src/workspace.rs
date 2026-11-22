@@ -8,8 +8,8 @@ use fe3ds_core::ctpk::{
     decode_portrait_from_face_arc, decode_portrait_from_fe14_face_arc, encode_png,
 };
 use fe3ds_core::exefs_patcher::{
-    build_azahar_cheat_multi, build_exp_patches, build_ips, locate_exp_site, ExpPatchMode,
-    CODE_VADDR_BASE,
+    build_azahar_cheat_multi, build_exp_patches, build_fe14_wexp_patches, build_ips,
+    locate_exp_site, ExpPatchMode, CODE_VADDR_BASE,
 };
 use fe3ds_core::exporter::{export_mod_bundle, ExportReport, ExportRequest, RomFsFilePatch};
 use fe3ds_core::growth_rules::{
@@ -548,7 +548,8 @@ impl LoadedWorkspace {
         mut config: GrowthRulesConfig,
     ) -> Result<GrowthRulesPreview, String> {
         let support_supported = matches!(self.game_id.as_str(), "fe13" | "fe14" | "fe15");
-        let weapon_exp_supported = matches!(self.game_id.as_str(), "fe13" | "fe15");
+        let weapon_exp_supported = matches!(self.game_id.as_str(), "fe13" | "fe15")
+    || (self.game_id == "fe14" && self.code_bin.is_some());
 
         if !support_supported {
             config.support_speed = SupportSpeedPreset::Vanilla;
@@ -583,6 +584,26 @@ impl LoadedWorkspace {
                 "fe13" => {
                     let (mut raw, _) = self.read_raw_archive_bytes("data/GameData.bin.lz")?;
                     apply_fe13_weapon_exp(&mut raw, config.weapon_exp)?
+                }
+                "fe14" => {
+                let code = self
+                    .code_bin
+                    .as_deref()
+                    .ok_or_else(|| "缺少 ExeFS/code.bin，无法启用 FE14 武器熟练度加速".to_string())?;
+                let recs = build_fe14_wexp_patches(code, config.weapon_exp)
+                    .map_err(|e| format!("定位 FE14 武器熟练度位点失败: {e}"))?;
+                let after_val = match config.weapon_exp {
+                    WeaponExpPreset::Vanilla => 2,
+                    WeaponExpPreset::Fast2x => 4,
+                    WeaponExpPreset::Fast5x => 10,
+                    WeaponExpPreset::Fast10x => 16,
+                    WeaponExpPreset::Instant => 251,
+                };
+                GrowthPatchStat {
+                    modified_entries: recs.len(),
+                    sample_before: vec![2],
+                    sample_after: vec![after_val],
+                }
                 }
                 "fe15" => {
                     let (mut raw, _) = self.read_raw_archive_bytes("Data/Skill.bin.lz")?;
@@ -752,12 +773,29 @@ impl LoadedWorkspace {
             code_patches.extend(recs);
         }
 
+        if self.game_id == "fe14" && self.growth_rules.weapon_exp != WeaponExpPreset::Vanilla {
+         let code = self
+             .code_bin
+             .as_deref()
+             .ok_or_else(|| "缺少 ExeFS/code.bin，无法导出 FE14 武器熟练度补丁".to_string())?;
+         let recs = build_fe14_wexp_patches(code, self.growth_rules.weapon_exp)
+             .map_err(|e| format!("生成 FE14 武器熟练度补丁失败: {e}"))?;
+         code_patches.extend(recs);
+        }
+
         if romfs_patches.is_empty() && code_patches.is_empty() {
             return Err("当前尚未修改任何数据表、成长加速或经验规则，无需导出".to_string());
         }
 
         let title = if args.cheat_title.trim().is_empty() {
-            format!("{} Custom EXP", self.game_id.to_ascii_uppercase())
+            let has_exp = self.exp_mode != ExpPatchMode::Vanilla;
+            let has_wexp =
+             self.game_id == "fe14" && self.growth_rules.weapon_exp != WeaponExpPreset::Vanilla;
+            match (has_exp, has_wexp) {
+             (true, true) => format!("{} Custom EXP & WExp", self.game_id.to_ascii_uppercase()),
+             (false, true) => format!("{} Custom WExp", self.game_id.to_ascii_uppercase()),
+             _ => format!("{} Custom EXP", self.game_id.to_ascii_uppercase()),
+            }
         } else {
             args.cheat_title.trim().to_string()
         };

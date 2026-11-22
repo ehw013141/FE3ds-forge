@@ -265,8 +265,9 @@ onMounted(async () => {
         <main class="main-stage">
           <TableWorkbench v-if="activeView === 'table' && activeTableId" :table-id="activeTableId"
             @modified-change="handleTableModified" />
-          <GrowthRulePanel :current-config="summary.growthRules" :game-id="summary.gameId"
-            @config-change="handleGrowthRulesChange" v-else-if="activeView === 'growth'" />
+          <GrowthRulePanel v-else-if="activeView === 'growth'" :game-id="summary.gameId"
+            :has-code-bin="summary.hasCodeBin" :current-config="summary.growthRules"
+            @config-change="handleGrowthRulesChange" />
           <ExpRulePanel v-else :has-code-bin="summary.hasCodeBin" :exp-site-offset="summary.expSiteOffset"
             :exp-site-vaddr="summary.expSiteVaddr" :current-mode="summary.expMode" @mode-change="handleExpModeChange" />
         </main>

@@ -10,6 +10,7 @@ import type {
 
 const props = defineProps<{
   gameId: string;
+  hasCodeBin: boolean;
   currentConfig: GrowthRulesConfig;
 }>();
 
@@ -36,6 +37,16 @@ const weaponExpOptions = computed<{ id: WeaponExpPreset; title: string; desc: st
       { id: "fast5x", title: "5 倍习得", desc: "全部武器战技 SP 压至 1/5" },
       { id: "fast10x", title: "10 倍习得", desc: "全部武器战技 SP 压至 1/10" },
       { id: "instant", title: "1 战习得", desc: "所有武器战技 SP 统一设为 1" },
+    ];
+  }
+
+  if (props.gameId === "fe14") {
+    return [
+      { id: "vanilla", title: "原版默认", desc: "保持原版单次战斗/用杖熟练度 (+2)" },
+      { id: "fast2x", title: "2 倍熟练", desc: "战斗与用杖熟练度 ×2（单次 +4）" },
+      { id: "fast5x", title: "5 倍熟练", desc: "战斗与用杖熟练度 ×5（单次 +10）" },
+      { id: "fast10x", title: "8 倍熟练", desc: "战斗与用杖熟练度 ×8（单次 +16）" },
+      { id: "instant", title: "一击满级", desc: "单次使用直达当前职业上限（自动封顶）" },
     ];
   }
   return [
@@ -90,11 +101,13 @@ const weaponMeta = computed(() => {
     };
   }
   return {
-    title: "武器熟练度加速",
-    file: "待 ExeFS/code.bin 进一步验证",
-    unit: "",
-    supported: false,
-    note: "FE14 道具表无独立的单次武器经验字段，为避免误伤其它机制暂未开放此项；支援度加速可正常使用。",
+    title: "武器熟练度加速 (ExeFS 补丁)",
+    file: "ExeFS/code.ips & cheats.txt",
+    unit: "处代码位点（攻/守/杖）",
+    supported: props.hasCodeBin,
+    note: props.hasCodeBin
+      ? "通过 3 处无分支偏移 AOB 精准放大攻方、守方及用杖熟练度，不影响敌兵初始化且自带职业上限封顶，导出时自动合并至 code.ips 与 cheats.txt。"
+      : "当前目录缺少 ExeFS/code.bin，无法生成 FE14 武器熟练度代码补丁（请直接加载 .cci/.3ds/.cia 或完整解包目录）。",
   };
 });
 
@@ -146,16 +159,11 @@ watch(
     <header class="panel-header">
       <div>
         <h2>支援度与熟练度加速</h2>
-        <p class="panel-sub">纯 RomFS 数据表改写 · 兼容日/美/汉化版与真机/Azahar 模拟器</p>
+        <p class="panel-sub">支援度全系列走纯 RomFS · FE13/15 熟练度走 RomFS · FE14 熟练度走 ExeFS（IPS / 金手指）</p>
       </div>
-      <button
-        class="btn-reset"
-        :disabled="
-          loading ||
-          (currentConfig.supportSpeed === 'vanilla' && currentConfig.weaponExp === 'vanilla')
-        "
-        @click="resetBoth"
-      >
+      <button class="btn-reset" :disabled="loading ||
+        (currentConfig.supportSpeed === 'vanilla' && currentConfig.weaponExp === 'vanilla')
+        " @click="resetBoth">
         全部还原原版
       </button>
     </header>
@@ -176,14 +184,9 @@ watch(
       <p class="card-note">{{ supportMeta.note }}</p>
 
       <div class="preset-grid">
-        <button
-          v-for="opt in supportOptions"
-          :key="opt.id"
-          class="preset-btn"
-          :class="{ selected: currentConfig.supportSpeed === opt.id }"
-          :disabled="loading"
-          @click="selectSupport(opt.id)"
-        >
+        <button v-for="opt in supportOptions" :key="opt.id" class="preset-btn"
+          :class="{ selected: currentConfig.supportSpeed === opt.id }" :disabled="loading"
+          @click="selectSupport(opt.id)">
           <span class="preset-title">{{ opt.title }}</span>
           <span class="preset-desc">{{ opt.desc }}</span>
         </button>
@@ -207,10 +210,7 @@ watch(
           <h3>{{ weaponMeta.title }}</h3>
           <code class="file-tag">{{ weaponMeta.file }}</code>
         </div>
-        <span
-          class="status-pill"
-          :class="{ active: weaponMeta.supported && currentConfig.weaponExp !== 'vanilla' }"
-        >
+        <span class="status-pill" :class="{ active: weaponMeta.supported && currentConfig.weaponExp !== 'vanilla' }">
           {{
             !weaponMeta.supported
               ? "暂未开放"
@@ -223,14 +223,9 @@ watch(
       <p class="card-note">{{ weaponMeta.note }}</p>
 
       <div v-if="weaponMeta.supported" class="preset-grid five-cols">
-        <button
-          v-for="opt in weaponExpOptions"
-          :key="opt.id"
-          class="preset-btn"
-          :class="{ selected: currentConfig.weaponExp === opt.id }"
-          :disabled="loading"
-          @click="selectWeaponExp(opt.id)"
-        >
+        <button v-for="opt in weaponExpOptions" :key="opt.id" class="preset-btn"
+          :class="{ selected: currentConfig.weaponExp === opt.id }" :disabled="loading"
+          @click="selectWeaponExp(opt.id)">
           <span class="preset-title">{{ opt.title }}</span>
           <span class="preset-desc">{{ opt.desc }}</span>
         </button>
@@ -423,6 +418,7 @@ watch(
 }
 
 @media (max-width: 900px) {
+
   .preset-grid,
   .preset-grid.five-cols {
     grid-template-columns: repeat(2, minmax(0, 1fr));
